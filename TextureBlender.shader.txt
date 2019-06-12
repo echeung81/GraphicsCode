@@ -1,0 +1,137 @@
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+ Shader "Custom/SimpleMix"
+ {
+     Properties
+     {
+
+     	 _baseTexture("Texture Base (RGB)", 2D) = "white" {}
+     	 _baseRepeatX("Base Repeat X", Float) = 1
+         _baseRepeatY("Base Repeat Y", Float) = 1
+         _baseMask("Texture Base Mask (RGB)", 2D) = "white" {}
+
+         _texture1 ("Texture 1 (RGB)", 2D) = "white" {}
+         _texture1RepeatX("Texture 1 Repeat X", Float) = 1
+         _texture1RepeatY("Texture 1 Repeat Y", Float) = 1
+         _texture1Mask("Texture 1 Mask (RGB)", 2D) = "white" {}
+
+         _texture2 ("Texture 2 (RGB)", 2D) = "white" {}
+         _texture2Mask("Texture 2 Mask (RGB)", 2D) = "white" {}
+
+         _texture2RepeatX("Texture 2 Repeat X", Float) = 1
+         _texture2RepeatY("Texture 2 Repeat Y", Float) = 1
+
+         _texture3 ("Texture 3 (RGB)", 2D) = "white" {}
+         _texture3Mask("Texture 3 Mask (RGB)", 2D) = "white" {}
+
+         _texture3RepeatX("Texture 3 Repeat X", Float) = 1
+         _texture3RepeatY("Texture 3 Repeat Y", Float) = 1
+
+     }
+     SubShader
+     {
+         Tags
+        {
+            "Queue"="Transparent"
+            "IgnoreProjector"="True"
+            "RenderType"="Transparent"
+            "PreviewType"="Plane"
+            "CanUseSpriteAtlas"="True"
+        }
+
+        Lighting Off
+        Blend SrcAlpha OneMinusSrcAlpha
+        Cull Off
+        ZWrite Off
+        Fog { Mode Off }
+       
+        Pass
+        {
+        CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+           
+            struct appdata_t
+            {
+                half4 vertex   : POSITION;
+                half4 color    : COLOR;
+                half2 texcoord : TEXCOORD0;
+            };
+ 
+            struct v2f
+            {
+                half4 vertex   : SV_POSITION;
+                fixed4 color    : COLOR;
+                half2 basecoord : TEXCOORD0;
+                half2 texcoord1  : TEXCOORD1;
+                half2 texcoord2 : TEXCOORD2;
+                half2 texcoord3 : TEXCOORD3;
+                half2 maskTexCoord : TEXCOORD5;
+            };
+
+            sampler2D _baseTexture;
+            sampler2D _baseMask;
+          	sampler2D _texture1;
+          	sampler2D _texture1Mask;
+          	sampler2D _texture2;
+          	sampler2D _texture2Mask;
+          	sampler2D _texture3;
+          	sampler2D _texture3Mask;
+
+          	half _baseRepeatX;
+          	half _baseRepeatY;
+            half _texture1RepeatX;
+         	half _texture1RepeatY;
+         	half _texture2RepeatX;
+         	half _texture2RepeatY;
+		    half _texture3RepeatX;
+         	half _texture3RepeatY;
+ 
+            v2f vert(appdata_t IN)
+            {
+                v2f OUT;
+                OUT.vertex = UnityObjectToClipPos(IN.vertex);
+                OUT.texcoord1 = IN.texcoord  * half2(_texture1RepeatX, _texture1RepeatY);
+                OUT.texcoord2 = IN.texcoord * half2(_texture2RepeatX, _texture2RepeatY);
+                OUT.texcoord3 = IN.texcoord * half2(_texture3RepeatX, _texture3RepeatY);
+                OUT.basecoord = IN.texcoord * half2(_baseRepeatX, _baseRepeatY);
+                OUT.maskTexCoord = IN.texcoord;
+                OUT.color = IN.color;
+                return OUT;
+            }
+
+            fixed4 frag(v2f IN) : COLOR
+            {
+
+            	fixed4 tex1Col = tex2D(_texture1, IN.texcoord1);
+            	fixed4 maskCol = tex2D(_texture1Mask, IN.maskTexCoord);
+            	fixed4 tex2Col = tex2D(_texture2, IN.texcoord2);
+            	fixed4 mask2Col = tex2D(_texture2Mask, IN.maskTexCoord);
+            	fixed4 tex3Col = tex2D(_texture3, IN.texcoord3);
+            	fixed4 mask3Col = tex2D(_texture3Mask, IN.maskTexCoord);
+            	fixed4 baseCol = tex2D(_baseTexture, IN.basecoord);
+            	fixed4 maskBaseCol = tex2D(_baseMask, IN.maskTexCoord);
+
+            	fixed4 out1Col = tex1Col * maskCol;
+            	fixed4 out2Col = tex2Col * mask2Col;
+            	fixed4 out3Col = tex3Col * mask3Col;
+
+            	fixed4 baseOutCol = baseCol * (1 - (maskCol + mask2Col + mask3Col));
+
+            	//mask rule TODO fix, if all white only blend layer 
+            	fixed4 outCol = out1Col + out2Col + out3Col + (baseOutCol);
+
+            	//outCol = (outCol == 0) ? baseCol : outCol;
+            	//fixed4 outCol = (tex2Col * (1 - maskCol.a)) + ( tex1Col * maskCol.a);
+            	return outCol;
+             }
+        ENDCG
+        }
+    }
+}
+
+
+
+         
+        
